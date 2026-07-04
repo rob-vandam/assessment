@@ -1,0 +1,22 @@
+[program:celery-cron]
+command=/home/rob/assessment/assessment/venv/bin/celery -A assessment worker -n cron@%%h --queues=scheduled_tasks --concurrency=4 --loglevel=info --logfile=/home/rob/assessment/assessment/assessment/logs/celery>
+directory=/home/rob/assessment/assessment/assessment
+user=rob
+autostart=true
+autorestart=true
+startsecs=5
+stopsignal=TERM
+stopwaitsecs=900
+stopasgroup=true
+killasgroup=true
+
+[program:celery-beat]
+command=/home/rob/assessment/assessment/venv/bin/celery -A assessment beat --scheduler django_celery_beat.schedulers:DatabaseScheduler --loglevel=debug
+directory=/home/rob/assessment/assessment/assessment
+user=rob
+autostart=true
+autorestart=true
+startsecs=5
+stopwaitsecs=60
+stopsignal=TERM
+environment=PYTHONUNBUFFERED=1
