@@ -15,4 +15,4 @@ class QuestionAdmin(admin.ModelAdmin):
 
 @admin.register(Choice)
 class ChoiceAdmin(admin.ModelAdmin):
-    list_display = ("choice_text", "question", "votes")
+    list_display = ("choice_text", "question")
