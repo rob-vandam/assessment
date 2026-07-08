@@ -1,13 +1,17 @@
 from django.db.models import Count, Prefetch
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
-
+from rest_framework.permissions import DjangoModelPermissions
 from polls.models import Question, Choice
 from polls.serializers import (QuestionListSerializer, QuestionDetailSerializer, ChoiceSerializer,
                                QuestionCreateSerializer, VoteSerializer,VoteCreateSerializer)
 
+
+class CustomDjangoModelPermissions(DjangoModelPermissions):
+    authenticated_users_only = True
+
 class QuestionViewSet(ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, CustomDjangoModelPermissions]
     http_method_names = ["get","post"]
     def get_queryset(self):
         return (

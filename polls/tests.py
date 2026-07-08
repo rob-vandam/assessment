@@ -2,6 +2,7 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import User, Permission, Group
 from django.urls import reverse
 from .models import Question, Choice, Vote
 from django.db.utils import IntegrityError
@@ -306,3 +307,63 @@ class VoteAPITest(APITestCase):
         vote = Vote.objects.first()
         self.assertEqual(vote.user, self.user)
         self.assertEqual(vote.choice, self.choice)
+
+class QuestionCreatePermissionAPITest(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        # gebruiker zonder add_question permissie
+        cls.user_without_permission = User.objects.create_user(
+            username="reader",
+            password="secret123"
+        )
+
+        # gebruiker met add_question permissie
+        cls.user_with_permission = User.objects.create_user(
+            username="editor",
+            password="secret123"
+        )
+        cls.user_with_permission.user_permissions.add(
+            Permission.objects.get(codename="add_question")
+        )
+
+        cls.payload = {
+            "question_text": "Test vraag",
+            "choices": [
+                {"choice_text": "Ja"},
+                {"choice_text": "Nee"},
+            ]
+        }
+
+    def test_post_forbidden_without_permission(self):
+        self.client.force_authenticate(self.user_without_permission)
+        url = reverse("questions-list")
+
+        response = self.client.post(url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(Question.objects.count(), 0)
+
+    def test_post_allowed_with_permission(self):
+        self.client.force_authenticate(self.user_with_permission)
+        url = reverse("questions-list")
+
+        response = self.client.post(url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Question.objects.count(), 1)
+
+    def test_post_requires_authentication(self):
+        url = reverse("questions-list")
+
+        response = self.client.post(url, self.payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_get_allowed_for_authenticated_user_without_permission(self):
+        self.client.force_authenticate(self.user_without_permission)
+        url = reverse("questions-list")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
