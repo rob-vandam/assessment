@@ -36,4 +36,17 @@ class Command(BaseCommand):
 
         j = response.json()
 
+        payload = {
+            "question_text": "Wat is je favoriete programmeertaal?",
+            "choices": [
+                {"choice_text": "Python"},
+                {"choice_text": "JavaScript"},
+                {"choice_text": "Rust"}
+            ]
+        }
+        url = ''.join([base_url, '/questions/'])
+        response = requests.post(url, json=payload, headers=headers, timeout=(3, 30))
+
+        j = response.json()
+
         print('Finished')

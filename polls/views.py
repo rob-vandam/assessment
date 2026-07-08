@@ -3,7 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ModelViewSet
 
 from polls.models import Question, Choice
-from polls.serializers import QuestionListSerializer, QuestionDetailSerializer, ChoiceSerializer
+from polls.serializers import (QuestionListSerializer, QuestionDetailSerializer, ChoiceSerializer,
+                               QuestionCreateSerializer)
 
 class QuestionViewSet(ModelViewSet):
     permission_classes = [IsAuthenticated]
@@ -26,4 +27,10 @@ class QuestionViewSet(ModelViewSet):
         if self.action == "retrieve":
             return QuestionDetailSerializer
 
+        if self.action == "create":
+            return QuestionCreateSerializer
+
         return QuestionDetailSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)

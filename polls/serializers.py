@@ -37,3 +37,40 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "pub_date",
             "choices",
         ]
+
+# POST serializers
+
+class ChoiceCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Choice
+        fields = [
+            "id",
+            "choice_text",
+        ]
+
+class QuestionCreateSerializer(serializers.ModelSerializer):
+    choices = ChoiceCreateSerializer(many=True)
+
+    class Meta:
+        model = Question
+        fields = [
+            "id",
+            "question_text",
+            "pub_date",
+            "choices",
+        ]
+
+    def validate_choices(self, value):
+        if len(value) < 1:
+            raise serializers.ValidationError(
+                "Een question moet minstens 1 choice hebben."
+            )
+        return value
+
+    def create(self, validated_data):
+        choices_data = validated_data.pop("choices")
+        question = Question.objects.create(**validated_data)
+        Choice.objects.bulk_create(
+            [Choice(question=question, **choice) for choice in choices_data]
+        )
+        return question
