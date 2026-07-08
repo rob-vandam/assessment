@@ -175,3 +175,63 @@ class AuthTokenAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn("token", response.data)
         self.assertTrue(len(response.data["token"]) > 0)
+
+# api POST tests
+class QuestionCreateAPITest(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="john",
+            password="secret123"
+        )
+
+    def setUp(self):
+        self.client.force_authenticate(self.user)
+
+    def test_create_question_with_choices(self):
+        url = reverse("questions-list")
+
+        payload = {
+            "question_text": "Wat is je favoriete programmeertaal?",
+            "choices": [
+                {"choice_text": "Python"},
+                {"choice_text": "JavaScript"},
+                {"choice_text": "Rust"},
+            ]
+        }
+
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Question.objects.count(), 1)
+        question = Question.objects.first()
+
+        self.assertEqual(
+            question.question_text,
+            "Wat is je favoriete programmeertaal?"
+        )
+
+        self.assertEqual(Choice.objects.count(), 3)
+
+        self.assertEqual(question.choices.count(), 3)
+
+        choice_texts = set(question.choices.values_list("choice_text", flat=True))
+        self.assertSetEqual(
+            choice_texts,
+            {"Python", "JavaScript", "Rust"}
+        )
+    # test of een vraag zonder antwoorden wordt geweigerd
+    def test_create_question_without_choices_fails(self):
+        url = reverse("questions-list")
+
+        payload = {
+            "question_text": "Test vraag",
+            "choices": []
+        }
+
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("choices", response.data)
