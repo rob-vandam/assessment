@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Question, Choice
+from .models import Question, Choice, Vote
 
 #GET serializers
 
@@ -11,7 +11,6 @@ class ChoiceSerializer(serializers.ModelSerializer):
             "id",
             "question",
             "choice_text",
-            "votes",
         ]
 
 class QuestionListSerializer(serializers.ModelSerializer):
@@ -37,6 +36,14 @@ class QuestionDetailSerializer(serializers.ModelSerializer):
             "pub_date",
             "choices",
         ]
+
+class VoteSerializer(serializers.ModelSerializer):
+    user = serializers.StringRelatedField()
+    choice = serializers.StringRelatedField()
+
+    class Meta:
+        model = Vote
+        fields = ["id", "user", "choice", "created_at"]
 
 # POST serializers
 
@@ -74,3 +81,8 @@ class QuestionCreateSerializer(serializers.ModelSerializer):
             [Choice(question=question, **choice) for choice in choices_data]
         )
         return question
+
+class VoteCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Vote
+        fields = ["choice"]

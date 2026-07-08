@@ -3,7 +3,8 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from .models import Question, Choice
+from .models import Question, Choice, Vote
+from django.db.utils import IntegrityError
 
 User = get_user_model()
 
@@ -52,7 +53,7 @@ class ChoiceModelTest(TestCase):
         )
 
         self.assertEqual(choice.question, self.question)
-        self.assertEqual(choice.votes, 0)
+        # self.assertEqual(choice.votes, 0)
 
     def test_choice_str(self):
         choice = Choice.objects.create(
@@ -61,6 +62,40 @@ class ChoiceModelTest(TestCase):
         )
 
         self.assertEqual(str(choice), "Tea")
+
+
+class VoteModelTest(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="john",
+            password="secret123"
+        )
+
+        self.question = Question.objects.create(
+            owner=self.user,
+            question_text="Tea or coffee?"
+        )
+
+        self.choice = Choice.objects.create(
+            question=self.question,
+            choice_text="Tea"
+        )
+
+    def test_user_can_vote(self):
+        vote = Vote.objects.create(
+            user=self.user,
+            choice=self.choice
+        )
+
+        self.assertEqual(vote.user, self.user)
+        self.assertEqual(vote.choice, self.choice)
+
+    def test_user_cannot_vote_twice_for_same_choice(self):
+        Vote.objects.create(user=self.user, choice=self.choice)
+
+        with self.assertRaises(IntegrityError):
+            Vote.objects.create(user=self.user, choice=self.choice)
 
 # api GET tests
 class QuestionListAPITest(APITestCase):
@@ -235,3 +270,39 @@ class QuestionCreateAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertIn("choices", response.data)
+
+class VoteAPITest(APITestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="john",
+            password="secret123"
+        )
+
+        self.question = Question.objects.create(
+            owner=self.user,
+            question_text="Tea or coffee?"
+        )
+
+        self.choice = Choice.objects.create(
+            question=self.question,
+            choice_text="Tea"
+        )
+
+        self.client.force_authenticate(self.user)
+
+    def test_user_can_create_vote(self):
+        url = reverse("votes-list")
+
+        payload = {
+            "choice": self.choice.id
+        }
+
+        response = self.client.post(url, payload, format="json")
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Vote.objects.count(), 1)
+
+        vote = Vote.objects.first()
+        self.assertEqual(vote.user, self.user)
+        self.assertEqual(vote.choice, self.choice)
