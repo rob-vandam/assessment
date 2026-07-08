@@ -1,5 +1,8 @@
 from django.test import TestCase
+from rest_framework import status
+from rest_framework.test import APITestCase
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 from .models import Question, Choice
 
 User = get_user_model()
@@ -58,3 +61,117 @@ class ChoiceModelTest(TestCase):
         )
 
         self.assertEqual(str(choice), "Tea")
+
+# api GET tests
+class QuestionListAPITest(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="john",
+            password="secret"
+        )
+
+        cls.question = Question.objects.create(
+            owner=cls.user,
+            question_text="Tea or coffee?"
+        )
+
+        Choice.objects.create(
+            question=cls.question,
+            choice_text="Tea"
+        )
+
+        Choice.objects.create(
+            question=cls.question,
+            choice_text="Coffee"
+        )
+
+    def setUp(self):
+        self.client.force_authenticate(self.user)
+
+    def test_list_returns_200(self):
+        url = reverse("questions-list")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_list_returns_expected_fields(self):
+        url = reverse("questions-list")
+
+        response = self.client.get(url)
+
+        question = response.data[0]
+
+        self.assertIn("id", question)
+        self.assertIn("question_text", question)
+        self.assertIn("pub_date", question)
+        self.assertIn("choice_count", question)
+
+        self.assertNotIn("choices", question)
+
+class QuestionDetailAPITest(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="john",
+            password="secret"
+        )
+
+        cls.question = Question.objects.create(
+            owner=cls.user,
+            question_text="Tea or coffee?"
+        )
+
+        Choice.objects.create(
+            question=cls.question,
+            choice_text="Tea"
+        )
+
+    def setUp(self):
+        self.client.force_authenticate(self.user)
+
+    def test_detail_contains_choices(self):
+        url = reverse("questions-detail", args=[self.question.id])
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn("choices", response.data)
+        self.assertEqual(len(response.data["choices"]), 1)
+
+    def test_anonymous_user_gets_401(self):
+        self.client.logout()
+
+        url = reverse("questions-list")
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+# test for the auth token
+class AuthTokenAPITest(APITestCase):
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = User.objects.create_user(
+            username="john",
+            password="secret123"
+        )
+
+    def test_token_is_returned_with_valid_credentials(self):
+        url = reverse("api-token-auth")
+
+        data = {
+            "username": "john",
+            "password": "secret123"
+        }
+
+        response = self.client.post(url, data)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn("token", response.data)
+        self.assertTrue(len(response.data["token"]) > 0)
